@@ -7,20 +7,24 @@ import {
   BelongsTo,
   HasMany,
 } from "sequelize-typescript";
-import Day from "./Day";
-import Time from "./Time";
+import Schedule from "./Schedule";
+import Day from "./Schedule";
+import Showtime from "./Showtime";
 
 @Table
 class Film extends Model {
   @ForeignKey(() => Day)
   @Column
-  dayId!: number;
+  scheduleId!: number;
+  @Column
+  name!: string;
+  @Column
+  showTime!: string;
+  @BelongsTo(() => Schedule)
+  schedule!: Schedule;
 
-  @BelongsTo(() => Day)
-  day!: Day;
-
-  @HasMany(() => Time)
-  times!: Time[];
+  @HasMany(() => Showtime)
+  times!: Showtime[];
 }
 
 export default Film;

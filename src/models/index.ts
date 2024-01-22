@@ -2,10 +2,11 @@
 import { Sequelize, SequelizeOptions } from "sequelize-typescript";
 import City from "./City";
 
-import Day from "./Day";
 import Film from "./Film";
 import Theater from "./Theater";
-import Time from "./Time";
+
+import Showtime from "./Showtime";
+import SChedule from "./Schedule";
 
 const sequelizeOptions: SequelizeOptions = {
   username: "myuser",
@@ -16,6 +17,6 @@ const sequelizeOptions: SequelizeOptions = {
 };
 const sequelize = new Sequelize(sequelizeOptions);
 
-sequelize.addModels([City, Theater, Day, Film, Time]);
+sequelize.addModels([City, Theater, SChedule, Film, Showtime]);
 
 export { sequelize };

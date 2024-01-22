@@ -9,7 +9,7 @@ import {
   Unique,
 } from "sequelize-typescript";
 import City from "./City";
-import Day from "./Day";
+import SChedule from "./Schedule";
 
 @Table
 class Theater extends Model {
@@ -24,8 +24,8 @@ class Theater extends Model {
   @BelongsTo(() => City)
   city!: City;
 
-  @HasMany(() => Day)
-  days!: Day[];
+  @HasMany(() => SChedule)
+  days!: SChedule[];
 }
 
 export default Theater;

@@ -11,10 +11,15 @@ import Theater from "./Theater";
 import Film from "./Film";
 
 @Table
-class Day extends Model {
+class Schedule extends Model {
   @ForeignKey(() => Theater)
   @Column
   theaterId!: number;
+
+  @Column
+  date!: Date;
+  @Column
+  weekday!: string;
 
   @BelongsTo(() => Theater)
   theater!: Theater;
@@ -23,4 +28,4 @@ class Day extends Model {
   films!: Film[];
 }
 
-export default Day;
+export default Schedule;

@@ -9,7 +9,7 @@ import {
 import Film from "./Film";
 
 @Table
-class Time extends Model {
+class Showtime extends Model {
   @ForeignKey(() => Film)
   @Column
   filmId!: number;
@@ -18,7 +18,7 @@ class Time extends Model {
   film!: Film;
 
   @Column
-  startTime!: Date;
+  startTime!: string;
 }
 
-export default Time;
+export default Showtime;

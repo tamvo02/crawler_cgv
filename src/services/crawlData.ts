@@ -4,6 +4,10 @@ import cheerio from "cheerio";
 import puppeteer from "puppeteer";
 import { createCity } from "./crud/city";
 import { createTheater } from "./crud/theater";
+import moment from "moment";
+import { createSchedule } from "./crud/schedule";
+import { createFilm } from "./crud/film";
+import { createShowtime } from "./crud/showTime";
 export default class crawlService {
   public async crawlData() {
     try {
@@ -94,24 +98,61 @@ export default class crawlService {
     id: any,
     link: string
   ) {
-    const $ = cheerio.load(html);
-
-    const cityTheaters: any[] = [];
     console.log(theaterId, id, link);
-    // Select li elements with class starting with 'cgv_city_{cityId}'
-    // $(`li.${cityId} span[id^='cgv_site_']`).map(async (_, spanElement) => {
-    //   const theaterIdMatches = $(spanElement).attr("id")?.match(/\d+/);
-    //   const theaterId = theaterIdMatches ? theaterIdMatches[0] : "";
-    //   const theaterName = $(spanElement).text().trim();
+    const dateArray = [];
+    const today = moment();
 
-    //   if (theaterId && theaterName) {
-    //     // const theater = await createTheater(theaterName); // Assuming you have a createTheater function
-    //     console.log(` Theater ${theaterName}`);
-    //     await createTheater(theaterName, parseInt(id));
-    //     // cityTheaters.push(theater);
-    //   }
+    for (let i = 0; i < 7; i++) {
+      dateArray.push(today.add(i, "days").format("YYYYMMDD"));
+    }
+    // console.log(dateArray);
+    // dateArray.map(async (date) => {
+    //   console.log(date);
+    const fetchPromises = dateArray.map(async (date) => {
+      // moment(date, "YYYYMMDD").format("dddd");
+      const dataSchedule = await createSchedule(
+        moment(date, "YYYYMMDD").format("dddd"),
+        moment(date, "YYYYMMDD").toDate(),
+        id
+      );
+
+      const responses = await axios.post(link, { selecteddate: date });
+      const $ = cheerio.load(responses.data);
+      if ($(".product-collateral.tabs.tabs-cgv-showtimes").length > 0) {
+        const filmListPromises = $(".film-list").map(async (index, element) => {
+          const filmName = $(element).find(".film-label h3 a").text().trim();
+
+          // Extracting showtimes
+          const showTime: any = [];
+          const showtimePromises = $(element)
+            .find(".film-showtimes ul li a span")
+            .map((index, timeElement) => {
+              const showtime = $(timeElement).text().trim();
+              return showTime.push(showtime);
+            })
+            .get();
+
+          const dataFilm = await createFilm(
+            dataSchedule.dataValues.id,
+            filmName,
+            showTime.toString()
+          );
+          // console.log("Film Name:", filmName);
+          // console.log("Showtimes:", showtimes);
+          // console.log("------------------------");
+        });
+
+        // Wait for all filmListPromises to resolve
+        await Promise.all(filmListPromises);
+      }
+    });
+
+    try {
+      await Promise.all(fetchPromises);
+    } catch (error) {
+      console.error("One or more requests failed:", error);
+    }
+
     // });
-
-    return cityTheaters;
   }
 }
