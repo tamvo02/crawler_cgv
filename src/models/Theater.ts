@@ -16,6 +16,8 @@ class Theater extends Model {
   @Unique
   @Column
   name!: string;
+  @Column
+  url!: string;
 
   @ForeignKey(() => City)
   @Column
@@ -25,7 +27,7 @@ class Theater extends Model {
   city!: City;
 
   @HasMany(() => SChedule)
-  days!: SChedule[];
+  schedules!: SChedule[];
 }
 
 export default Theater;

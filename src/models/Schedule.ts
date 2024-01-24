@@ -17,9 +17,7 @@ class Schedule extends Model {
   theaterId!: number;
 
   @Column
-  date!: Date;
-  @Column
-  weekday!: string;
+  date!: string;
 
   @BelongsTo(() => Theater)
   theater!: Theater;

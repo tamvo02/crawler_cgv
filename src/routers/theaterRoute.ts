@@ -4,5 +4,7 @@ import TheaterController from "../controllers/theaterController";
 const theaterRoute = Router();
 const theaterController = new TheaterController();
 
-theaterRoute.get("/city", theaterController.crawlData);
+theaterRoute.get("", theaterController.crawlData);
+theaterRoute.post("/schedule", theaterController.findScheduleOfTheaterByDate);
+theaterRoute.get("/:id", theaterController.findCItyrAndTheater);
 export default theaterRoute;

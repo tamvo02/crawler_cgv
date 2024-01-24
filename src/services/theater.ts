@@ -2,23 +2,61 @@ import axios from "axios";
 import { Request, Response } from "express";
 import cheerio from "cheerio";
 import puppeteer from "puppeteer";
+import City from "../models/City";
+import Theater from "../models/Theater";
+import Schedule from "../models/Schedule";
+import Film from "../models/Film";
+import Showtime from "../models/Showtime";
+import FilmCatalog from "../models/FilmCatalog";
 export default class theaterService {
-  public async crawlDataCity() {
+  public async getAllCityandTheater() {
     try {
-      const browser = await puppeteer.launch();
-      const page = await browser.newPage();
+      const cities = await City.findAll({
+        include: [
+          {
+            model: Theater,
+          },
+        ],
+      });
 
-      // Navigate to the website
-      await page.goto("https://www.cgv.vn/default/cinox/site/");
+      return cities;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  public async getCityandTheater(cityId: number) {
+    try {
+      const cityWithTheaters = await City.findOne({
+        where: { id: cityId },
+        include: [
+          {
+            model: Theater,
+          },
+        ],
+      });
 
-      // Wait for JavaScript to execute
-      await page.waitForTimeout(5000); // Adjust the time as needed
+      return cityWithTheaters;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  public async getScheduleOfCity(theaterId: number) {
+    try {
+      const cityWithTheaters = await Schedule.findOne({
+        where: { id: theaterId },
+        include: [
+          {
+            model: Film,
+            include: [
+              {
+                model: FilmCatalog,
+              },
+            ],
+          },
+        ],
+      });
 
-      // Get the content after JavaScript execution
-      const content = await page.content();
-      console.log(content);
-
-      await browser.close();
+      return cityWithTheaters;
     } catch (error) {
       console.error(error);
     }

@@ -6,8 +6,9 @@ import { createCity } from "./crud/city";
 import { createTheater } from "./crud/theater";
 import moment from "moment";
 import { createSchedule } from "./crud/schedule";
-import { createFilm } from "./crud/film";
+import { createFilm, createFilmCatalog, findFilmCatalog } from "./crud/film";
 import { createShowtime } from "./crud/showTime";
+import FilmCatalog from "../models/FilmCatalog";
 export default class crawlService {
   public async crawlData() {
     try {
@@ -35,9 +36,30 @@ export default class crawlService {
       console.error(error);
     }
   }
+  public async crawlDataFilmAvailable() {
+    try {
+      const browser = await puppeteer.launch();
+      const page = await browser.newPage();
+
+      // Navigate to the website
+      await page.goto("https://www.cgv.vn/default/movies/now-showing.html");
+
+      // Wait for JavaScript to execute
+      await page.waitForTimeout(5000); // Adjust the time as needed
+
+      // Get the content after JavaScript execution
+      const content = await page.content();
+      // console.log(content);
+      const cities = this.extractAvailableFilm(content);
+
+      await browser.close();
+    } catch (error) {
+      console.error(error);
+    }
+  }
   public async extractCities(html: string) {
     const $ = cheerio.load(html);
-
+    let flag: number = 0;
     // Select city spans and extract their IDs and names
     const cityPromises = $("span[id^='cgv_city_']")
       .map(async (_, element) => {
@@ -45,7 +67,6 @@ export default class crawlService {
         const cityId = idMatches ? parseInt(idMatches[0]) : -1; // Default to -1 if no match
         const cityName = $(element).text();
 
-        // Add the city to the object
         if (cityId !== -1 && cityName) {
           const city = await createCity(cityName);
           const theater = await this.extractTheater(
@@ -53,9 +74,38 @@ export default class crawlService {
             $(element).attr("id"),
             city.dataValues.id
           );
-
-          console.log(city.dataValues.id);
         }
+      })
+      .get();
+
+    await Promise.all(cityPromises);
+  }
+  public async extractAvailableFilm(html: string) {
+    const $ = cheerio.load(html);
+    let flag: number = 0;
+    // Select city spans and extract their IDs and names
+    const cityPromises = $(".film-lists")
+      .map(async (_, element) => {
+        const filmAtribute: any = [];
+        const filmName = $(element).find(".product-name a").text();
+        const posterUrl: any = $(element)
+          .find(".product-images a img")
+          .attr("src");
+        // console.log("idMatches", idMatches);
+        const idMatchess = $(element)
+          .find(".cgv-movie-info .cgv-info-normal")
+          .map((_, subelement) => {
+            const idMatchesss = $(subelement).text().trim();
+            filmAtribute.push(idMatchesss);
+          });
+        console.log("idMatches:", filmName, filmAtribute, posterUrl);
+        await createFilmCatalog(
+          filmName,
+          posterUrl,
+          filmAtribute[1],
+          filmAtribute[0],
+          filmAtribute[2]
+        );
       })
       .get();
 
@@ -67,92 +117,160 @@ export default class crawlService {
 
     const cityTheaters: any[] = [];
     console.log("cityId:", cityId);
-    // Select li elements with class starting with 'cgv_city_{cityId}'
-    $(`li.${cityId} span[id^='cgv_site_']`).map(async (_, spanElement) => {
-      const theaterIdMatches = $(spanElement).attr("id")?.match(/\d+/);
-      const theaterId = theaterIdMatches ? theaterIdMatches : "";
-      const theaterName = $(spanElement).text().trim();
 
-      const onclickValue = $(spanElement).attr("onclick");
-      const linkMatch = onclickValue?.match(/site\('(.+)',this\)/);
-      const link = linkMatch ? linkMatch[1] : "";
-      if (theaterId && theaterName) {
-        // const theater = await createTheater(theaterName); // Assuming you have a createTheater function
-        console.log(` Theater ${theaterName}`);
-        const theater = await createTheater(theaterName, parseInt(id));
-        await this.extractScheduleEachTheater(
-          html,
-          $(spanElement).attr("id"),
-          theater.dataValues.id,
-          link
-        );
-        // cityTheaters.push(theater);
+    // Select li elements with class starting with 'cgv_city_{cityId}'
+    const theaterPromise = $(`li.${cityId} span[id^='cgv_site_']`).map(
+      async (_, spanElement) => {
+        const theaterIdMatches = $(spanElement).attr("id")?.match(/\d+/);
+        const theaterId = theaterIdMatches ? theaterIdMatches : "";
+        const theaterName = $(spanElement).text().trim();
+
+        const onclickValue = $(spanElement).attr("onclick");
+        const linkMatch = onclickValue?.match(/site\('(.+)',this\)/);
+        const link = linkMatch ? linkMatch[1] : "";
+        if (theaterId && theaterName) {
+          // const theater = await createTheater(theaterName); // Assuming you have a createTheater function
+          console.log(` Theater ${theaterName}`);
+          const theater = await createTheater(theaterName, parseInt(id), link);
+          // await this.extractScheduleEachTheater(
+          //   html,
+          //   $(spanElement).attr("id"),
+          //   theater.dataValues.id,
+          //   link
+          // );
+        }
       }
-    });
+    );
+    await Promise.all(theaterPromise);
 
     return cityTheaters;
   }
+  // public async extractScheduleEachTheater(
+  //   html: string,
+  //   theaterId: any,
+  //   id: any,
+  //   link: string
+  // ) {
+  //   const currentDate = moment(); // Get the current date once
+  //   const scheduleIds: any = [];
+
+  //   for (let i = 0; i < 7; i++) {
+  //     try {
+  //       const targetDate = currentDate.clone().add(i, "days");
+  //       const formattedDate = targetDate.format("YYYYMMDD");
+
+  //       // Create Schedule
+  //       const dataSchedule = await createSchedule(targetDate.toDate(), id);
+
+  //       // Make Axios Request
+  //       const responses = await axios.post(link, {
+  //         selecteddate: formattedDate,
+  //       });
+
+  //       const $ = cheerio.load(responses.data);
+  //       const listFilm: any = [];
+
+  //       const filmListPromises = $(".film-list").map(async (_, element) => {
+  //         const filmName = $(element).find(".film-label h3 a").attr("title");
+  //         const $1 = cheerio.load(element);
+  //         listFilm.push(filmName);
+  //         const showTime: any = [];
+  //         $1(element)
+  //           .find(".film-showtimes ul li a span")
+  //           .map((index, timeElement) => {
+  //             const showtime = $1(timeElement).text().trim();
+  //             showTime.push(showtime);
+  //           });
+  //         if (filmName) {
+  //           await createFilm(
+  //             dataSchedule.dataValues.id,
+  //             filmName,
+  //             showTime.toString()
+  //           );
+  //         }
+  //         // Create Film based on Schedule ID
+  //       });
+  //       // console.log(listFilm);
+  //       // Wait for all filmListPromises to resolve
+  //       await Promise.all(filmListPromises);
+  //     } catch (error) {
+  //       console.error("Error in the loop:", error);
+  //       // Handle the error as needed
+  //     }
+  //   }
+
+  //   // });
+  // }
   public async extractScheduleEachTheater(
-    html: string,
-    theaterId: any,
-    id: any,
+    scheduleId: any,
+    date: string,
     link: string
   ) {
-    console.log(theaterId, id, link);
-    const dateArray = [];
-    const today = moment();
+    try {
+      const browser = await puppeteer.launch();
+      const page = await browser.newPage();
 
-    for (let i = 0; i < 7; i++) {
-      dateArray.push(today.add(i, "days").format("YYYYMMDD"));
-    }
-    // console.log(dateArray);
-    // dateArray.map(async (date) => {
-    //   console.log(date);
-    const fetchPromises = dateArray.map(async (date) => {
-      // moment(date, "YYYYMMDD").format("dddd");
-      const dataSchedule = await createSchedule(
-        moment(date, "YYYYMMDD").format("dddd"),
-        moment(date, "YYYYMMDD").toDate(),
-        id
-      );
+      // Navigate to the website
+      await page.goto(link);
 
-      const responses = await axios.post(link, { selecteddate: date });
-      const $ = cheerio.load(responses.data);
-      if ($(".product-collateral.tabs.tabs-cgv-showtimes").length > 0) {
-        const filmListPromises = $(".film-list").map(async (index, element) => {
-          const filmName = $(element).find(".film-label h3 a").text().trim();
+      // Wait for JavaScript to execute
+      await page.waitForTimeout(5000); // Adjust the time as needed
 
-          // Extracting showtimes
+      // Get the content after JavaScript execution
+      const content = await page.content();
+      // console.log(content);
+
+      await browser.close();
+      // const responses = await axios.post(link, {
+      //   selecteddate: date,
+      // });
+
+      // Extract and log the result from the response
+      // const result = responses.data;
+      console.log(content);
+
+      // Further processing based on the result (similar to your client-side code)
+      if (!content.includes("film-list")) {
+        console.log("No schedules available!");
+      } else {
+        const $ = cheerio.load(content);
+
+        // const listFilm = [];
+
+        const filmListPromises = $(".film-list").map(async (_, element) => {
+          const filmName = $(element).find(".film-label h3 a").attr("title");
+          const posterImg = $(element)
+            .find(".film-left .film-poster a img")
+            .attr("src");
+          console.log("Poster Source:", posterImg);
           const showTime: any = [];
-          const showtimePromises = $(element)
+          $(element)
             .find(".film-showtimes ul li a span")
             .map((index, timeElement) => {
               const showtime = $(timeElement).text().trim();
-              return showTime.push(showtime);
-            })
-            .get();
-
-          const dataFilm = await createFilm(
-            dataSchedule.dataValues.id,
-            filmName,
-            showTime.toString()
-          );
-          // console.log("Film Name:", filmName);
-          // console.log("Showtimes:", showtimes);
-          // console.log("------------------------");
+              showTime.push(showtime);
+            });
+          console.log(filmName, showTime);
+          if (filmName && posterImg) {
+            const filmCatalogData = await findFilmCatalog(filmName);
+            if (filmCatalogData) {
+              await createFilm(
+                scheduleId,
+                filmName,
+                showTime.toString(),
+                posterImg,
+                filmCatalogData.dataValues.id
+              );
+            }
+          }
+          // Create Film based on Schedule ID
         });
 
         // Wait for all filmListPromises to resolve
         await Promise.all(filmListPromises);
       }
-    });
-
-    try {
-      await Promise.all(fetchPromises);
-    } catch (error) {
-      console.error("One or more requests failed:", error);
+    } catch (error: any) {
+      console.error("Error:", error.message);
     }
-
-    // });
   }
 }

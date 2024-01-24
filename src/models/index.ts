@@ -7,6 +7,7 @@ import Theater from "./Theater";
 
 import Showtime from "./Showtime";
 import SChedule from "./Schedule";
+import FilmCatalog from "./FilmCatalog";
 
 const sequelizeOptions: SequelizeOptions = {
   username: "myuser",
@@ -17,6 +18,6 @@ const sequelizeOptions: SequelizeOptions = {
 };
 const sequelize = new Sequelize(sequelizeOptions);
 
-sequelize.addModels([City, Theater, SChedule, Film, Showtime]);
+sequelize.addModels([City, Theater, SChedule, FilmCatalog, Film]);
 
 export { sequelize };
